@@ -1,6 +1,6 @@
 "use client";
 
-import { User, ChevronRight, Download } from "lucide-react";
+import { User, ChevronRight, Download, Trash2 } from "lucide-react";
 
 interface TopicPresenter {
   id: number;
@@ -21,10 +21,11 @@ interface TopicCardProps {
   isActive?: boolean;
   onClick?: () => void;
   onDownloadQr?: () => void;
+  onDelete?: () => void;
   loading?: boolean;
 }
 
-export function TopicCard({ topic, isActive, onClick, onDownloadQr, loading }: TopicCardProps) {
+export function TopicCard({ topic, isActive, onClick, onDownloadQr, onDelete, loading }: TopicCardProps) {
   const presenterNames = topic.presenters.map((presenter) => presenter.name).join(" & ");
 
   return (
@@ -61,6 +62,19 @@ export function TopicCard({ topic, isActive, onClick, onDownloadQr, loading }: T
           {topic.averageScore.toFixed(1)} avg · {topic.totalVotes} votes
         </p>
       </div>
+      {onDelete ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete();
+          }}
+          className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-white/5 transition-colors"
+          title="Delete topic"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      ) : null}
       {onDownloadQr ? (
         <button
           type="button"

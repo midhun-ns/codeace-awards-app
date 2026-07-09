@@ -141,6 +141,40 @@ export default function AdminPage() {
     URL.revokeObjectURL(url);
   };
 
+  const deleteTopic = async (topic: Topic) => {
+    if (
+      !window.confirm(
+        `Delete "${topic.title}" and all presenter ratings? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/topics/${topic.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Failed to delete topic");
+        return;
+      }
+
+      if (activeSession?.topicId === topic.id) {
+        setActiveSession(null);
+      }
+      if (selectedTopic?.id === topic.id) {
+        setSelectedTopic(null);
+      }
+
+      await fetchTopics();
+      toast.success(`"${topic.title}" deleted`);
+    } catch {
+      toast.error("Failed to delete topic");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const downloadAllQrs = async () => {
     if (topics.length === 0) {
       return;
@@ -243,6 +277,7 @@ export default function AdminPage() {
                     isActive={activeSession?.topicId === topic.id}
                     onClick={() => startSession(topic)}
                     onDownloadQr={() => downloadQr(topic)}
+                    onDelete={() => deleteTopic(topic)}
                     loading={loading}
                   />
                 ))
