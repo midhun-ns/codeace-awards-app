@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Presenter {
+  id        Int      @id @default(autoincrement())
+  name      String
+  title     String
+  department String   @default("Engineering")
+  avatar    String?
+  order     Int      @default(0)
+  scores    Score[]
+  sessions  Session[]
+  createdAt DateTime @default(now())
+}
+
+model Score {
+  id           Int       @id @default(autoincrement())
+  presenterId  Int
+  presenter    Presenter @relation(fields: [presenterId], references: [id], onDelete: Cascade)
+  email        String
+  rating       Int
+  sessionToken String
+  ipAddress    String?
+  createdAt    DateTime  @default(now())
+
+  @@unique([email, presenterId, sessionToken])
+  @@index([presenterId])
+  @@index([sessionToken])
+}
+
+model Session {
+  id          String    @id @default(uuid())
+  presenterId Int
+  presenter   Presenter @relation(fields: [presenterId], references: [id], onDelete: Cascade)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+
+  @@index([presenterId])
+  @@index([isActive])
+}
