@@ -67,7 +67,7 @@ export default function AdminPage() {
 
   const fetchTopics = async () => {
     try {
-      const res = await fetch("/api/topics");
+      const res = await fetch("/api/topics", { cache: "no-store" });
       if (!res.ok) {
         return;
       }
@@ -80,7 +80,7 @@ export default function AdminPage() {
 
   const fetchActiveSession = async () => {
     try {
-      const res = await fetch("/api/sessions");
+      const res = await fetch("/api/sessions", { cache: "no-store" });
       if (!res.ok) {
         setActiveSession(null);
         return;

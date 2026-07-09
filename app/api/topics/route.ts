@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createTopicSchema } from "@/lib/validators";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const topics = await prisma.topic.findMany({

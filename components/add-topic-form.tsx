@@ -73,7 +73,10 @@ export function AddTopicForm({ onCreated }: AddTopicFormProps) {
         return;
       }
 
-      await Promise.allSettled(
+      resetForm();
+      onCreated();
+
+      const photoResults = await Promise.allSettled(
         presenters.map(async (presenter, index) => {
           if (!presenter.photo) {
             return;
@@ -86,6 +89,7 @@ export function AddTopicForm({ onCreated }: AddTopicFormProps) {
           const photoRes = await fetch(`/api/presenters/${data.presenters[index].id}/photo`, {
             method: "POST",
             body: photoForm,
+            cache: "no-store",
           });
 
           if (!photoRes.ok) {
@@ -94,8 +98,17 @@ export function AddTopicForm({ onCreated }: AddTopicFormProps) {
         })
       );
 
-      toast.success(`"${data.title}" added with a unique QR code`);
-      resetForm();
+      const failedPhotos = photoResults.filter((result) => result.status === "rejected").length;
+      const hasPhotos = presenters.some((presenter) => presenter.photo);
+
+      if (failedPhotos > 0) {
+        toast.error("Topic saved, but some photos failed to upload");
+      } else if (hasPhotos) {
+        toast.success(`"${data.title}" added with photos and QR code`);
+      } else {
+        toast.success(`"${data.title}" added with a unique QR code`);
+      }
+
       onCreated();
     } catch {
       toast.error("Failed to add topic");
