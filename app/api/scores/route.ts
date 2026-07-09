@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       request.headers.get("x-real-ip") ??
       "unknown";
 
-    const scores = await prisma.$transaction(
+    const scores = await Promise.all(
       validated.ratings.map((entry) =>
         prisma.score.create({
           data: {

@@ -7,7 +7,8 @@ function isTursoUrl(url: string) {
 }
 
 function createPrismaClient() {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  const authToken = process.env.TURSO_AUTH_TOKEN?.trim();
 
   if (databaseUrl && isTursoUrl(databaseUrl)) {
     // Lazy require keeps libsql packages out of the webpack client bundle
@@ -16,7 +17,7 @@ function createPrismaClient() {
     return new PrismaClient({
       adapter: new PrismaLibSQL({
         url: databaseUrl,
-        authToken: process.env.TURSO_AUTH_TOKEN,
+        authToken,
       }),
     });
   }
@@ -24,6 +25,6 @@ function createPrismaClient() {
   return new PrismaClient();
 }
 
-export const prisma = globalForPrisma.prisma || createPrismaClient();
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+globalForPrisma.prisma = prisma;

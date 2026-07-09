@@ -8,19 +8,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { topicId } = sessionSchema.parse(body);
 
-    const session = await prisma.$transaction(async (tx) => {
-      await tx.session.updateMany({
-        where: { isActive: true },
-        data: { isActive: false },
-      });
+    await prisma.session.updateMany({
+      where: { isActive: true },
+      data: { isActive: false },
+    });
 
-      return tx.session.create({
-        data: {
-          topicId,
-          isActive: true,
-          expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 4), // 4 hours
-        },
-      });
+    const session = await prisma.session.create({
+      data: {
+        topicId,
+        isActive: true,
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 4), // 4 hours
+      },
     });
 
     return NextResponse.json({ success: true, session }, { status: 201 });

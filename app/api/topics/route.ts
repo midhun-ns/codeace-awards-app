@@ -74,17 +74,15 @@ export async function POST(request: NextRequest) {
 
     const order = (await prisma.topic.count()) + 1;
 
-    const topic = await prisma.$transaction(async (tx) => {
-      return tx.topic.create({
-        data: {
-          title: validated.title,
-          order,
-          presenters: {
-            create: validated.presenterNames.map((name) => ({ name })),
-          },
+    const topic = await prisma.topic.create({
+      data: {
+        title: validated.title,
+        order,
+        presenters: {
+          create: validated.presenterNames.map((name) => ({ name })),
         },
-        include: { presenters: true },
-      });
+      },
+      include: { presenters: true },
     });
 
     for (let index = 0; index < topic.presenters.length; index++) {
@@ -92,12 +90,16 @@ export async function POST(request: NextRequest) {
       if (!photo) {
         continue;
       }
-      const presenter = topic.presenters[index];
-      const photoPath = await savePresenterPhoto(presenter.id, presenter.name, photo);
-      await prisma.presenter.update({
-        where: { id: presenter.id },
-        data: { photo: photoPath },
-      });
+      try {
+        const presenter = topic.presenters[index];
+        const photoPath = await savePresenterPhoto(presenter.id, presenter.name, photo);
+        await prisma.presenter.update({
+          where: { id: presenter.id },
+          data: { photo: photoPath },
+        });
+      } catch {
+        // Photo upload is optional; topic creation should still succeed on serverless.
+      }
     }
 
     return NextResponse.json({ id: topic.id, title: topic.title }, { status: 201 });
