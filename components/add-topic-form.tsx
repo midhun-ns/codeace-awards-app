@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { upload } from "@vercel/blob/client";
 import { compressImageFile } from "@/lib/compress-image";
+import { getPresenterPhotoPathname } from "@/lib/presenter-photo-path";
 
 interface PresenterDraft {
   name: string;
@@ -82,18 +84,46 @@ export function AddTopicForm({ onCreated }: AddTopicFormProps) {
             return;
           }
 
+          const presenterId = data.presenters[index].id;
+          const presenterName = data.presenters[index].name;
           const compressedPhoto = await compressImageFile(presenter.photo);
-          const photoForm = new FormData();
-          photoForm.append("photo", compressedPhoto);
 
-          const photoRes = await fetch(`/api/presenters/${data.presenters[index].id}/photo`, {
-            method: "POST",
-            body: photoForm,
-            cache: "no-store",
-          });
+          try {
+            const blob = await upload(
+              getPresenterPhotoPathname(presenterId, presenterName),
+              compressedPhoto,
+              {
+                access: "public",
+                handleUploadUrl: `/api/presenters/${presenterId}/photo`,
+                contentType: compressedPhoto.type || "image/jpeg",
+              }
+            );
 
-          if (!photoRes.ok) {
-            throw new Error("photo-upload-failed");
+            const saveRes = await fetch(`/api/presenters/${presenterId}/photo`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ photo: blob.url }),
+              cache: "no-store",
+            });
+
+            if (!saveRes.ok) {
+              throw new Error("photo-save-failed");
+            }
+
+            return;
+          } catch {
+            const photoForm = new FormData();
+            photoForm.append("photo", compressedPhoto);
+
+            const photoRes = await fetch(`/api/presenters/${presenterId}/photo`, {
+              method: "POST",
+              body: photoForm,
+              cache: "no-store",
+            });
+
+            if (!photoRes.ok) {
+              throw new Error("photo-upload-failed");
+            }
           }
         })
       );

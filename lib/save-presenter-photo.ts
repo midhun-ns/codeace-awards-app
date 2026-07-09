@@ -1,6 +1,5 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
-import { put } from "@vercel/blob";
 import { slugify } from "@/lib/slugify";
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -46,12 +45,11 @@ export async function savePresenterPhoto(
   const extension = resolveExtension(contentType);
   const fileName = `${presenterId}-${slugify(name)}.${extension}`;
   const fileBuffer = Buffer.from(await file.arrayBuffer());
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
 
-  if (blobToken) {
+  if (process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
+    const { put } = await import("@vercel/blob");
     const blob = await put(`presenters/${fileName}`, fileBuffer, {
       access: "public",
-      token: blobToken,
       contentType,
       addRandomSuffix: true,
     });
