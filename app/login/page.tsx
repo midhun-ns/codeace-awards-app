@@ -2,7 +2,6 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Trophy, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 function LoginForm() {
@@ -36,27 +35,21 @@ function LoginForm() {
   return (
     <div className="admin-card w-full max-w-md p-8">
       <div className="text-center mb-8">
-        <div className="live-badge mx-auto mb-6 w-fit">
-          <Trophy className="h-4 w-4" />
-          Q1 2026 Awards
-        </div>
-        <h1 className="text-3xl font-bold text-white">Codeace Awards</h1>
+        <img src="/codeace-logo.png" alt="Codeace" className="leaderboard-logo mx-auto mb-6" />
+        <h1 className="text-3xl font-bold text-white">Q1 Awards 2026</h1>
         <p className="text-slate-400 mt-2">Enter the password to continue</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="relative">
-          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Password"
-            required
-            autoFocus
-            className="admin-form-input pl-11"
-          />
-        </div>
+        <input
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="Password"
+          required
+          autoFocus
+          className="admin-form-input"
+        />
         <button type="submit" disabled={submitting} className="admin-submit-btn">
           {submitting ? "Checking..." : "Login"}
         </button>
