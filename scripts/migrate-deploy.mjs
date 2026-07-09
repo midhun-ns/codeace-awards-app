@@ -8,18 +8,20 @@ function fail(message) {
   process.exit(1);
 }
 
+function skip(message) {
+  console.warn(`\n${message}\n`);
+  process.exit(0);
+}
+
 function run(command) {
   execSync(command, { stdio: "inherit", env: process.env });
 }
 
 if (databaseUrl.startsWith("file:")) {
   if (isVercel) {
-    fail(
-      "SQLite file URLs do not work on Vercel.\n" +
-        "Set these environment variables in Vercel → Settings → Environment Variables:\n" +
-        "  DATABASE_URL=libsql://<your-db>.turso.io\n" +
-        "  TURSO_AUTH_TOKEN=<your-token>\n" +
-        "Create a free database at https://turso.tech"
+    skip(
+      "Skipping schema sync: SQLite file URLs do not work on Vercel.\n" +
+        "Set DATABASE_URL=libsql://<your-db>.turso.io and TURSO_AUTH_TOKEN for production."
     );
   }
 
@@ -43,10 +45,9 @@ if (databaseUrl.startsWith("libsql://")) {
 }
 
 if (isVercel) {
-  fail(
-    "DATABASE_URL is not configured for production.\n" +
-      "Set DATABASE_URL to a Turso libsql:// URL and TURSO_AUTH_TOKEN in Vercel.\n" +
-      "Create a free database at https://turso.tech"
+  skip(
+    "Skipping schema sync: Turso is not configured yet.\n" +
+      "Set DATABASE_URL=libsql://<your-db>.turso.io and TURSO_AUTH_TOKEN in Vercel for production data."
   );
 }
 
