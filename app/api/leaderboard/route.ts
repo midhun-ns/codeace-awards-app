@@ -27,7 +27,7 @@ export async function GET() {
               : 0,
         };
       })
-      .sort((a, b) => b.averageScore - a.averageScore);
+      .sort((a, b) => b.totalScore - a.totalScore);
 
     return NextResponse.json(leaderboard);
   } catch {
