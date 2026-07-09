@@ -11,9 +11,9 @@ import { toast } from "sonner";
 interface LeaderboardEntry {
   id: number;
   name: string;
-  title: string;
-  department: string;
-  avatar?: string | null;
+  photo?: string | null;
+  topicTitle: string;
+  topicsPresented: number;
   totalVotes: number;
   totalScore: number;
   averageScore: number;
@@ -30,8 +30,8 @@ function Avatar({ entry, ringClass, sizeClass }: { entry?: LeaderboardEntry; rin
   return (
     <div className={`${sizeClass} rounded-full ${ringClass} mx-auto`}>
       <div className="w-full h-full rounded-full bg-[#1a1f2e] flex items-center justify-center overflow-hidden">
-        {entry?.avatar ? (
-          <img src={entry.avatar} alt={entry.name} className="w-full h-full object-cover" />
+        {entry?.photo ? (
+          <img src={entry.photo} alt={entry.name} className="w-full h-full object-cover" />
         ) : (
           <span className="text-3xl">👤</span>
         )}
@@ -50,7 +50,7 @@ export default function LeaderboardPage() {
     try {
       const res = await fetch("/api/leaderboard");
       const result: LeaderboardEntry[] = await res.json();
-      setData([...result].sort((a, b) => b.totalScore - a.totalScore));
+      setData([...result].sort((a, b) => b.averageScore - a.averageScore));
     } catch {
       console.error("Failed to fetch leaderboard");
     }
@@ -162,7 +162,7 @@ export default function LeaderboardPage() {
                   <div className="w-full bg-gradient-to-b from-[#1e293b] to-[#0f172a] rounded-2xl border border-slate-600/50 p-5 pt-8 pb-4 relative">
                     <Avatar entry={second} ringClass="bg-gradient-to-b from-slate-400 to-slate-500 p-0.5" sizeClass="w-24 h-24 md:w-28 md:h-28" />
                     <h3 className="text-center text-white font-semibold text-base mb-1 mt-3">{second.name}</h3>
-                    <p className="text-center text-blue-400 text-3xl font-bold mb-2">{second.totalScore}</p>
+                    <p className="text-center text-blue-400 text-3xl font-bold mb-2">{second.averageScore.toFixed(1)}</p>
                     <div className="text-center">
                       <span className="inline-block px-3 py-1 rounded-full bg-slate-800/80 border border-slate-600/50 text-slate-400 text-xs">
                         {second.totalVotes} votes
@@ -196,7 +196,7 @@ export default function LeaderboardPage() {
                       <Avatar entry={first} ringClass="bg-gradient-to-b from-amber-300 to-amber-600 p-1 shadow-lg shadow-amber-500/20" sizeClass="w-28 h-28 md:w-32 md:h-32" />
                     </div>
                     <h3 className="text-center text-white font-semibold text-lg mb-1 mt-3">{first.name}</h3>
-                    <p className="text-center text-amber-400 text-4xl font-bold mb-2">{first.totalScore}</p>
+                    <p className="text-center text-amber-400 text-4xl font-bold mb-2">{first.averageScore.toFixed(1)}</p>
                     <div className="text-center">
                       <span className="inline-block px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
                         {first.totalVotes} votes
@@ -221,7 +221,7 @@ export default function LeaderboardPage() {
                   <div className="w-full bg-gradient-to-b from-[#1e293b] to-[#0f172a] rounded-2xl border border-slate-600/50 p-5 pt-8 pb-4 relative">
                     <Avatar entry={third} ringClass="bg-gradient-to-b from-amber-600 to-amber-800 p-0.5" sizeClass="w-24 h-24 md:w-28 md:h-28" />
                     <h3 className="text-center text-white font-semibold text-base mb-1 mt-3">{third.name}</h3>
-                    <p className="text-center text-amber-500 text-3xl font-bold mb-2">{third.totalScore}</p>
+                    <p className="text-center text-amber-500 text-3xl font-bold mb-2">{third.averageScore.toFixed(1)}</p>
                     <div className="text-center">
                       <span className="inline-block px-3 py-1 rounded-full bg-slate-800/80 border border-slate-600/50 text-slate-400 text-xs">
                         {third.totalVotes} votes

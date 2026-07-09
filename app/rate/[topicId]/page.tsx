@@ -5,31 +5,25 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { RatingForm } from "@/components/rating-form";
-
-interface Presenter {
-  id: number;
-  name: string;
-  title: string;
-}
+import { RatingForm, type RatingTopic } from "@/components/rating-form";
 
 interface ActiveSession {
   id: string;
-  presenterId: number;
+  topicId: number;
   isActive: boolean;
 }
 
-export default function RatePresenterPage() {
+export default function RateTopicPage() {
   const params = useParams();
-  const presenterId = Number(params.presenterId);
+  const topicId = Number(params.topicId);
 
-  const [presenter, setPresenter] = useState<Presenter | null>(null);
+  const [topic, setTopic] = useState<RatingTopic | null>(null);
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!presenterId || !Number.isInteger(presenterId) || presenterId <= 0) {
+    if (!topicId || !Number.isInteger(topicId) || topicId <= 0) {
       setError("Invalid rating link. Please scan the QR code again.");
       setLoading(false);
       return;
@@ -37,29 +31,25 @@ export default function RatePresenterPage() {
 
     const load = async () => {
       try {
-        const [presentersRes, sessionRes] = await Promise.all([
-          fetch("/api/presenters"),
-          fetch(`/api/sessions/active?presenterId=${presenterId}`),
+        const [topicsRes, sessionRes] = await Promise.all([
+          fetch("/api/topics"),
+          fetch(`/api/sessions/active?topicId=${topicId}`),
         ]);
 
-        const presenters = await presentersRes.json();
+        const topics: RatingTopic[] = await topicsRes.json();
         const sessionData = await sessionRes.json();
 
-        const foundPresenter = presenters.find(
-          (item: Presenter) => item.id === presenterId
-        );
+        const foundTopic = topics.find((item) => item.id === topicId);
 
-        if (!foundPresenter) {
-          setError("Presenter not found.");
+        if (!foundTopic) {
+          setError("Topic not found.");
           return;
         }
 
-        setPresenter(foundPresenter);
+        setTopic(foundTopic);
 
         if (!sessionData.session) {
-          setError(
-            "Rating is not open yet. Please wait for the presenter to finish."
-          );
+          setError("Rating is not open yet. Please wait for the presentation to finish.");
           return;
         }
 
@@ -72,7 +62,7 @@ export default function RatePresenterPage() {
     };
 
     load();
-  }, [presenterId]);
+  }, [topicId]);
 
   if (loading) {
     return (
@@ -86,7 +76,7 @@ export default function RatePresenterPage() {
     );
   }
 
-  if (error || !presenter || !session) {
+  if (error || !topic || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <Card className="bg-slate-800/50 border-slate-700/50 max-w-md w-full">
@@ -108,16 +98,11 @@ export default function RatePresenterPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-lg"
       >
         <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-sm">
           <CardContent className="p-8">
-            <RatingForm
-              presenterId={presenterId}
-              presenterName={presenter.name}
-              presenterTitle={presenter.title}
-              sessionToken={session.id}
-            />
+            <RatingForm topic={topic} sessionToken={session.id} />
           </CardContent>
         </Card>
       </motion.div>

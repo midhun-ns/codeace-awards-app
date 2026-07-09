@@ -2,31 +2,31 @@
 
 import { User, ChevronRight, Download } from "lucide-react";
 
-interface Presenter {
+interface TopicPresenter {
   id: number;
   name: string;
-  title: string;
-  avatar?: string | null;
-  order: number;
-  totalVotes?: number;
-  averageScore?: number;
+  photo?: string | null;
 }
 
-interface PresenterCardProps {
-  presenter: Presenter;
+interface Topic {
+  id: number;
+  title: string;
+  presenters: TopicPresenter[];
+  totalVotes: number;
+  averageScore: number;
+}
+
+interface TopicCardProps {
+  topic: Topic;
   isActive?: boolean;
   onClick?: () => void;
   onDownloadQr?: () => void;
   loading?: boolean;
 }
 
-export function PresenterCard({
-  presenter,
-  isActive,
-  onClick,
-  onDownloadQr,
-  loading,
-}: PresenterCardProps) {
+export function TopicCard({ topic, isActive, onClick, onDownloadQr, loading }: TopicCardProps) {
+  const presenterNames = topic.presenters.map((presenter) => presenter.name).join(" & ");
+
   return (
     <div
       role="button"
@@ -40,24 +40,26 @@ export function PresenterCard({
       }}
       className={`admin-presenter-row ${isActive ? "active" : ""} ${loading ? "opacity-70 pointer-events-none" : ""}`}
     >
-      <div className="admin-presenter-avatar">
-        {presenter.avatar ? (
-          <img src={presenter.avatar} alt={presenter.name} />
-        ) : (
-          <User className="h-5 w-5 text-slate-500" />
-        )}
+      <div className="flex -space-x-2 flex-shrink-0">
+        {topic.presenters.map((presenter) => (
+          <div key={presenter.id} className="admin-presenter-avatar ring-2 ring-slate-900">
+            {presenter.photo ? (
+              <img src={presenter.photo} alt={presenter.name} />
+            ) : (
+              <User className="h-5 w-5 text-slate-500" />
+            )}
+          </div>
+        ))}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h4 className="font-semibold text-white truncate">{presenter.name}</h4>
+          <h4 className="font-semibold text-white truncate">{topic.title}</h4>
           {isActive ? <span className="admin-active-badge">Active</span> : null}
         </div>
-        <p className="text-slate-400 text-sm truncate">{presenter.title}</p>
-        {presenter.averageScore !== undefined && presenter.totalVotes !== undefined ? (
-          <p className="text-xs text-slate-500 mt-1">
-            {presenter.averageScore.toFixed(1)} · {presenter.totalVotes} votes
-          </p>
-        ) : null}
+        <p className="text-slate-400 text-sm truncate">{presenterNames}</p>
+        <p className="text-xs text-slate-500 mt-1">
+          {topic.averageScore.toFixed(1)} avg · {topic.totalVotes} votes
+        </p>
       </div>
       {onDownloadQr ? (
         <button

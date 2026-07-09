@@ -6,6 +6,6 @@ export function getAppUrl(): string {
   return "http://localhost:3000";
 }
 
-export function getRateUrl(presenterId: number): string {
-  return `${getAppUrl()}/rate/${presenterId}`;
+export function getRateUrl(topicId: number): string {
+  return `${getAppUrl()}/rate/${topicId}`;
 }

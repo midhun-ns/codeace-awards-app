@@ -10,11 +10,11 @@ export async function POST(request: NextRequest) {
     // Validate email domain
     domainSchema.parse(validated.email);
 
-    // Check if session is valid and active
+    // Check if session is valid, active, and belongs to the topic
     const session = await prisma.session.findFirst({
       where: {
         id: validated.sessionToken,
-        presenterId: validated.presenterId,
+        topicId: validated.topicId,
         isActive: true,
         expiresAt: { gt: new Date() },
       },
@@ -27,14 +27,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for duplicate vote
-    const existing = await prisma.score.findUnique({
+    // Verify every rated presenter belongs to this topic
+    const topicPresenters = await prisma.presenter.findMany({
+      where: { topicId: validated.topicId },
+      select: { id: true },
+    });
+    const topicPresenterIds = new Set(topicPresenters.map((presenter) => presenter.id));
+    const invalidPresenter = validated.ratings.some(
+      (entry) => !topicPresenterIds.has(entry.presenterId)
+    );
+
+    if (invalidPresenter) {
+      return NextResponse.json(
+        { error: "Rating contains a presenter not in this topic" },
+        { status: 400 }
+      );
+    }
+
+    // Check for duplicate votes (any presenter already rated in this session)
+    const existing = await prisma.score.findFirst({
       where: {
-        email_presenterId_sessionToken: {
-          email: validated.email,
-          presenterId: validated.presenterId,
-          sessionToken: validated.sessionToken,
-        },
+        email: validated.email,
+        sessionToken: validated.sessionToken,
+        presenterId: { in: validated.ratings.map((entry) => entry.presenterId) },
       },
     });
 
@@ -45,20 +60,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const score = await prisma.score.create({
-      data: {
-        presenterId: validated.presenterId,
-        email: validated.email,
-        rating: validated.rating,
-        sessionToken: validated.sessionToken,
-        ipAddress: request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "unknown",
-      },
-    });
+    const ipAddress =
+      request.headers.get("x-forwarded-for") ??
+      request.headers.get("x-real-ip") ??
+      "unknown";
 
-    return NextResponse.json({ success: true, score }, { status: 201 });
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+    const scores = await prisma.$transaction(
+      validated.ratings.map((entry) =>
+        prisma.score.create({
+          data: {
+            presenterId: entry.presenterId,
+            topicId: validated.topicId,
+            email: validated.email,
+            rating: entry.rating,
+            sessionToken: validated.sessionToken,
+            ipAddress,
+          },
+        })
+      )
+    );
+
+    return NextResponse.json({ success: true, count: scores.length }, { status: 201 });
+  } catch (error: unknown) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "name" in error &&
+      error.name === "ZodError"
+    ) {
+      const zodError = error as unknown as { errors: unknown };
+      return NextResponse.json({ error: zodError.errors }, { status: 400 });
     }
     return NextResponse.json({ error: "Failed to submit score" }, { status: 500 });
   }

@@ -5,28 +5,29 @@ export async function GET() {
   try {
     const presenters = await prisma.presenter.findMany({
       include: {
-        scores: { select: { rating: true } },
+        scores: { select: { rating: true, topicId: true } },
+        topic: { select: { title: true } },
       },
     });
 
     const leaderboard = presenters
-      .map((p) => {
-        const totalScore = p.scores.reduce((sum, s) => sum + s.rating, 0);
+      .map((presenter) => {
+        const totalScore = presenter.scores.reduce((sum, score) => sum + score.rating, 0);
         return {
-          id: p.id,
-          name: p.name,
-          title: p.title,
-          department: p.department,
-          avatar: p.avatar,
-          totalVotes: p.scores.length,
+          id: presenter.id,
+          name: presenter.name,
+          photo: presenter.photo,
+          topicTitle: presenter.topic.title,
+          topicsPresented: new Set(presenter.scores.map((score) => score.topicId)).size,
+          totalVotes: presenter.scores.length,
           totalScore,
           averageScore:
-            p.scores.length > 0
-              ? Number((totalScore / p.scores.length).toFixed(2))
+            presenter.scores.length > 0
+              ? Number((totalScore / presenter.scores.length).toFixed(2))
               : 0,
         };
       })
-      .sort((a, b) => b.totalScore - a.totalScore);
+      .sort((a, b) => b.averageScore - a.averageScore);
 
     return NextResponse.json(leaderboard);
   } catch {

@@ -3,58 +3,72 @@
 import { useState, useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import { QrCode, Download, Users, BarChart3, Star, RefreshCw } from "lucide-react";
-import { PresenterCard } from "@/components/presenter-card";
+import { TopicCard } from "@/components/topic-card";
 import { QRDisplay } from "@/components/qr-display";
 import { BackButton } from "@/components/back-button";
-import { AddPresenterForm } from "@/components/add-presenter-form";
+import { AddTopicForm } from "@/components/add-topic-form";
 import { toast } from "sonner";
 import { getQrFilename } from "@/lib/slugify";
 
-interface Presenter {
+interface TopicPresenter {
   id: number;
   name: string;
+  photo?: string | null;
+  totalVotes: number;
+  averageScore: number;
+}
+
+interface Topic {
+  id: number;
   title: string;
-  avatar?: string | null;
   order: number;
+  presenters: TopicPresenter[];
   totalVotes: number;
   averageScore: number;
 }
 
 interface Session {
   id: string;
-  presenterId: number;
+  topicId: number;
   isActive: boolean;
 }
 
+interface LeaderboardEntry {
+  name: string;
+  topicTitle: string;
+  averageScore: number;
+  totalVotes: number;
+}
+
 export default function AdminPage() {
-  const [presenters, setPresenters] = useState<Presenter[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
-  const [selectedPresenter, setSelectedPresenter] = useState<Presenter | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchPresenters();
+    fetchTopics();
     fetchActiveSession();
     const interval = setInterval(fetchActiveSession, 5000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    if (!activeSession || presenters.length === 0) {
+    if (!activeSession || topics.length === 0) {
       return;
     }
-    const presenter = presenters.find((item) => item.id === activeSession.presenterId);
-    if (presenter) {
-      setSelectedPresenter(presenter);
+    const topic = topics.find((item) => item.id === activeSession.topicId);
+    if (topic) {
+      setSelectedTopic(topic);
     }
-  }, [activeSession, presenters]);
+  }, [activeSession, topics]);
 
-  const fetchPresenters = async () => {
-    const res = await fetch("/api/presenters");
+  const fetchTopics = async () => {
+    const res = await fetch("/api/topics");
     const data = await res.json();
-    setPresenters(data);
+    setTopics(data);
   };
 
   const fetchActiveSession = async () => {
@@ -64,20 +78,20 @@ export default function AdminPage() {
     setLastUpdated(new Date());
   };
 
-  const startSession = async (presenter: Presenter) => {
+  const startSession = async (topic: Topic) => {
     setLoading(true);
     try {
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ presenterId: presenter.id }),
+        body: JSON.stringify({ topicId: topic.id }),
       });
       const data = await res.json();
       if (data.success) {
         setActiveSession(data.session);
-        setSelectedPresenter(presenter);
+        setSelectedTopic(topic);
         setLastUpdated(new Date());
-        toast.success(`Session started for ${presenter.name}`);
+        toast.success(`Session started for "${topic.title}"`);
       }
     } catch {
       toast.error("Failed to start session");
@@ -97,64 +111,68 @@ export default function AdminPage() {
     return "";
   };
 
-  const downloadQr = async (presenter: Presenter) => {
-    const res = await fetch(`/api/qr/${presenter.id}`);
+  const downloadQr = async (topic: Topic) => {
+    const res = await fetch(`/api/qr/${topic.id}`);
     if (!res.ok) {
-      toast.error(`Failed to download QR for ${presenter.name}`);
+      toast.error(`Failed to download QR for "${topic.title}"`);
       return;
     }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = getQrFilename(presenter.name);
+    a.download = getQrFilename(topic.title);
     a.click();
     URL.revokeObjectURL(url);
   };
 
   const downloadAllQrs = async () => {
-    if (presenters.length === 0) {
+    if (topics.length === 0) {
       return;
     }
-    for (const presenter of presenters) {
-      await downloadQr(presenter);
+    for (const topic of topics) {
+      await downloadQr(topic);
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
     toast.success("Downloaded all QR codes");
   };
 
-  const exportCSV = () => {
-    const headers = ["Rank", "Name", "Topic", "Average Score", "Total Votes"];
-    const sorted = [...presenters].sort((a, b) => b.averageScore - a.averageScore);
-    const rows = sorted.map((p, i) => [
-      i + 1,
-      p.name,
-      p.title,
-      p.averageScore.toFixed(2),
-      p.totalVotes,
-    ]);
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "codeace-q1-awards-results.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Results exported to CSV");
+  const exportCSV = async () => {
+    try {
+      const res = await fetch("/api/leaderboard");
+      const leaderboard: LeaderboardEntry[] = await res.json();
+      const headers = ["Rank", "Name", "Topic", "Average Score", "Total Votes"];
+      const rows = leaderboard.map((entry, index) => [
+        index + 1,
+        entry.name,
+        entry.topicTitle,
+        entry.averageScore.toFixed(2),
+        entry.totalVotes,
+      ]);
+      const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "codeace-q1-awards-results.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Results exported to CSV");
+    } catch {
+      toast.error("Failed to export results");
+    }
   };
 
   const scrollToForm = () => {
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    const nameInput = formRef.current?.querySelector<HTMLInputElement>('input[name="name"]');
-    nameInput?.focus();
+    const titleInput = formRef.current?.querySelector<HTMLInputElement>('input[name="title"]');
+    titleInput?.focus();
   };
 
-  const qrUrl = selectedPresenter
-    ? `${getAppBaseUrl()}/rate/${selectedPresenter.id}`
-    : "";
+  const qrUrl = selectedTopic ? `${getAppBaseUrl()}/rate/${selectedTopic.id}` : "";
 
-  const totalVotes = presenters.reduce((sum, presenter) => sum + presenter.totalVotes, 0);
+  const totalPresenters = topics.reduce((sum, topic) => sum + topic.presenters.length, 0);
+  const totalVotes = topics.reduce((sum, topic) => sum + topic.totalVotes, 0);
 
   return (
     <main className="admin-page">
@@ -164,13 +182,13 @@ export default function AdminPage() {
         <div className="admin-header flex items-center justify-between mb-8">
           <div>
             <h1>Admin Dashboard</h1>
-            <p>Manage presenters and control rating sessions</p>
+            <p>Manage topics and control rating sessions</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
               onClick={downloadAllQrs}
-              disabled={presenters.length === 0}
+              disabled={topics.length === 0}
               className="admin-btn-outline"
             >
               <QrCode className="h-4 w-4" />
@@ -188,28 +206,28 @@ export default function AdminPage() {
             <div className="admin-card-header">
               <div className="admin-card-title">
                 <Users className="h-5 w-5 text-violet-400" />
-                Presenters ({presenters.length})
+                Topics ({topics.length})
               </div>
               <button type="button" onClick={scrollToForm} className="admin-add-btn">
-                + Add Presenter
+                + Add Topic
               </button>
             </div>
             <div className="admin-card-body space-y-4 max-h-[640px] overflow-y-auto">
               <div ref={formRef}>
-                <AddPresenterForm onCreated={fetchPresenters} />
+                <AddTopicForm onCreated={fetchTopics} />
               </div>
-              {presenters.length === 0 ? (
+              {topics.length === 0 ? (
                 <p className="text-center text-sm text-slate-500 py-6">
-                  No presenters yet. Add one above to generate a unique QR code.
+                  No topics yet. Add one above to generate a unique QR code.
                 </p>
               ) : (
-                presenters.map((presenter) => (
-                  <PresenterCard
-                    key={presenter.id}
-                    presenter={presenter}
-                    isActive={activeSession?.presenterId === presenter.id}
-                    onClick={() => startSession(presenter)}
-                    onDownloadQr={() => downloadQr(presenter)}
+                topics.map((topic) => (
+                  <TopicCard
+                    key={topic.id}
+                    topic={topic}
+                    isActive={activeSession?.topicId === topic.id}
+                    onClick={() => startSession(topic)}
+                    onDownloadQr={() => downloadQr(topic)}
                     loading={loading}
                   />
                 ))
@@ -227,23 +245,25 @@ export default function AdminPage() {
             </div>
             <div className="admin-card-body flex flex-1 items-center justify-center min-h-[480px]">
               <AnimatePresence mode="wait">
-                {selectedPresenter ? (
+                {selectedTopic ? (
                   <QRDisplay
-                    key={selectedPresenter.id}
+                    key={selectedTopic.id}
                     url={qrUrl}
-                    presenterName={selectedPresenter.name}
-                    presenterTitle={selectedPresenter.title}
+                    presenterName={selectedTopic.presenters
+                      .map((presenter) => presenter.name)
+                      .join(" & ")}
+                    presenterTitle={selectedTopic.title}
                   />
                 ) : (
                   <div className="text-center text-slate-500">
                     <QrCode className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                    <p className="text-lg">Select a presenter to view QR code</p>
-                    <p className="text-sm mt-2">Click a presenter to start their session</p>
+                    <p className="text-lg">Select a topic to view QR code</p>
+                    <p className="text-sm mt-2">Click a topic to start its session</p>
                   </div>
                 )}
               </AnimatePresence>
             </div>
-            {selectedPresenter ? (
+            {selectedTopic ? (
               <div className="admin-qr-footer">
                 <div className="flex items-center gap-3">
                   <span>Session Status</span>
@@ -264,9 +284,9 @@ export default function AdminPage() {
 
         <div className="admin-stat-grid">
           {[
-            { label: "Total Presenters", value: presenters.length, icon: Users, color: "purple" },
+            { label: "Total Presenters", value: totalPresenters, icon: Users, color: "purple" },
             { label: "Total Votes", value: totalVotes, icon: BarChart3, color: "blue" },
-            { label: "QR Codes Generated", value: presenters.length, icon: QrCode, color: "green" },
+            { label: "QR Codes Generated", value: topics.length, icon: QrCode, color: "green" },
             { label: "Live Session", value: activeSession?.isActive ? 1 : 0, icon: Star, color: "orange" },
           ].map((stat) => (
             <div key={stat.label} className="admin-stat-card">

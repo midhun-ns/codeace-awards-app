@@ -7,22 +7,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Topic {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String?
+  order       Int         @default(0)
+  presenters  Presenter[]
+  sessions    Session[]
+  createdAt   DateTime    @default(now())
+}
+
 model Presenter {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   name      String
-  title     String
-  department String   @default("Engineering")
-  avatar    String?
-  order     Int      @default(0)
+  photo     String?
+  topicId   Int
+  topic     Topic     @relation(fields: [topicId], references: [id], onDelete: Cascade)
   scores    Score[]
-  sessions  Session[]
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+
+  @@index([topicId])
 }
 
 model Score {
   id           Int       @id @default(autoincrement())
   presenterId  Int
   presenter    Presenter @relation(fields: [presenterId], references: [id], onDelete: Cascade)
+  topicId      Int
   email        String
   rating       Int
   sessionToken String
@@ -31,17 +42,18 @@ model Score {
 
   @@unique([email, presenterId, sessionToken])
   @@index([presenterId])
+  @@index([topicId])
   @@index([sessionToken])
 }
 
 model Session {
   id          String    @id @default(uuid())
-  presenterId Int
-  presenter   Presenter @relation(fields: [presenterId], references: [id], onDelete: Cascade)
+  topicId     Int
+  topic       Topic     @relation(fields: [topicId], references: [id], onDelete: Cascade)
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   expiresAt   DateTime
 
-  @@index([presenterId])
+  @@index([topicId])
   @@index([isActive])
 }

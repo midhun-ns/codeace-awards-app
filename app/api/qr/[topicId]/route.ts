@@ -6,28 +6,28 @@ import { getQrFilename } from "@/lib/slugify";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ presenterId: string }> }
+  { params }: { params: Promise<{ topicId: string }> }
 ) {
   try {
-    const { presenterId: presenterIdParam } = await params;
-    const presenterId = Number(presenterIdParam);
+    const { topicId: topicIdParam } = await params;
+    const topicId = Number(topicIdParam);
 
-    if (!Number.isInteger(presenterId) || presenterId <= 0) {
+    if (!Number.isInteger(topicId) || topicId <= 0) {
       return NextResponse.json(
-        { error: "Valid presenterId is required" },
+        { error: "Valid topicId is required" },
         { status: 400 }
       );
     }
 
-    const presenter = await prisma.presenter.findUnique({
-      where: { id: presenterId },
+    const topic = await prisma.topic.findUnique({
+      where: { id: topicId },
     });
 
-    if (!presenter) {
-      return NextResponse.json({ error: "Presenter not found" }, { status: 404 });
+    if (!topic) {
+      return NextResponse.json({ error: "Topic not found" }, { status: 404 });
     }
 
-    const rateUrl = getRateUrl(presenterId);
+    const rateUrl = getRateUrl(topicId);
     const pngBuffer = await QRCode.toBuffer(rateUrl, {
       type: "png",
       width: 512,
@@ -39,7 +39,7 @@ export async function GET(
       },
     });
 
-    const filename = getQrFilename(presenter.name);
+    const filename = getQrFilename(topic.title);
 
     return new NextResponse(new Uint8Array(pngBuffer), {
       headers: {

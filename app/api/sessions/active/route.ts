@@ -3,27 +3,27 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
-    const presenterIdParam = request.nextUrl.searchParams.get("presenterId");
-    const presenterId = Number(presenterIdParam);
+    const topicIdParam = request.nextUrl.searchParams.get("topicId");
+    const topicId = Number(topicIdParam);
 
-    if (!presenterIdParam || !Number.isInteger(presenterId) || presenterId <= 0) {
+    if (!topicIdParam || !Number.isInteger(topicId) || topicId <= 0) {
       return NextResponse.json(
-        { error: "Valid presenterId is required" },
+        { error: "Valid topicId is required" },
         { status: 400 }
       );
     }
 
-    const presenter = await prisma.presenter.findUnique({
-      where: { id: presenterId },
+    const topic = await prisma.topic.findUnique({
+      where: { id: topicId },
     });
 
-    if (!presenter) {
-      return NextResponse.json({ error: "Presenter not found" }, { status: 404 });
+    if (!topic) {
+      return NextResponse.json({ error: "Topic not found" }, { status: 404 });
     }
 
     const session = await prisma.session.findFirst({
       where: {
-        presenterId,
+        topicId,
         isActive: true,
         expiresAt: { gt: new Date() },
       },
