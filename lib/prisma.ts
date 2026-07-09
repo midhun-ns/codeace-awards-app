@@ -2,10 +2,14 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
+function isTursoUrl(url: string) {
+  return url.startsWith("libsql://") || (url.startsWith("https://") && url.includes("turso"));
+}
+
 function createPrismaClient() {
   const databaseUrl = process.env.DATABASE_URL;
 
-  if (databaseUrl?.startsWith("libsql://")) {
+  if (databaseUrl && isTursoUrl(databaseUrl)) {
     // Lazy require keeps libsql packages out of the webpack client bundle
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { PrismaLibSQL } = require("@prisma/adapter-libsql") as typeof import("@prisma/adapter-libsql");
