@@ -31,6 +31,14 @@ function resolveExtension(contentType: string): string {
   return "jpg";
 }
 
+function isBlobConfigured(): boolean {
+  if (process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
+    return true;
+  }
+
+  return Boolean(process.env.VERCEL && process.env.BLOB_STORE_ID?.trim());
+}
+
 export async function savePresenterPhoto(
   presenterId: number,
   name: string,
@@ -46,12 +54,14 @@ export async function savePresenterPhoto(
   const fileName = `${presenterId}-${slugify(name)}.${extension}`;
   const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-  if (process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
+  if (isBlobConfigured()) {
     const { put } = await import("@vercel/blob");
+    const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
     const blob = await put(`presenters/${fileName}`, fileBuffer, {
       access: "public",
       contentType,
       addRandomSuffix: true,
+      ...(token ? { token } : {}),
     });
     return blob.url;
   }
