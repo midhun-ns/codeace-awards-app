@@ -7,6 +7,7 @@ import { TopicCard } from "@/components/topic-card";
 import { QRDisplay } from "@/components/qr-display";
 import { BackButton } from "@/components/back-button";
 import { AddTopicForm } from "@/components/add-topic-form";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toast } from "sonner";
 import { getQrFilename } from "@/lib/slugify";
 
@@ -45,6 +46,8 @@ export default function AdminPage() {
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [topicToDelete, setTopicToDelete] = useState<Topic | null>(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -141,37 +144,38 @@ export default function AdminPage() {
     URL.revokeObjectURL(url);
   };
 
-  const deleteTopic = async (topic: Topic) => {
-    if (
-      !window.confirm(
-        `Delete "${topic.title}" and all presenter ratings? This cannot be undone.`
-      )
-    ) {
+  const deleteTopic = (topic: Topic) => {
+    setTopicToDelete(topic);
+  };
+
+  const confirmDeleteTopic = async () => {
+    if (!topicToDelete) {
       return;
     }
 
-    setLoading(true);
+    setDeleting(true);
     try {
-      const res = await fetch(`/api/topics/${topic.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/topics/${topicToDelete.id}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) {
         toast.error(data.error || "Failed to delete topic");
         return;
       }
 
-      if (activeSession?.topicId === topic.id) {
+      if (activeSession?.topicId === topicToDelete.id) {
         setActiveSession(null);
       }
-      if (selectedTopic?.id === topic.id) {
+      if (selectedTopic?.id === topicToDelete.id) {
         setSelectedTopic(null);
       }
 
       await fetchTopics();
-      toast.success(`"${topic.title}" deleted`);
+      toast.success(`"${topicToDelete.title}" deleted`);
+      setTopicToDelete(null);
     } catch {
       toast.error("Failed to delete topic");
     } finally {
-      setLoading(false);
+      setDeleting(false);
     }
   };
 
@@ -350,6 +354,21 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
+
+        <ConfirmDialog
+          open={topicToDelete !== null}
+          title="Delete topic?"
+          message={
+            topicToDelete
+              ? `Delete "${topicToDelete.title}" and all presenter ratings? This cannot be undone.`
+              : ""
+          }
+          confirmLabel="Delete Topic"
+          loading={deleting}
+          loadingLabel="Deleting..."
+          onConfirm={confirmDeleteTopic}
+          onCancel={() => setTopicToDelete(null)}
+        />
       </div>
     </main>
   );
