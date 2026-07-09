@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { compressImageFile } from "@/lib/compress-image";
 
 interface PresenterDraft {
   name: string;
@@ -57,19 +58,13 @@ export function AddTopicForm({ onCreated }: AddTopicFormProps) {
 
     setSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append("title", title.trim());
-      formData.append("presenterCount", String(presenters.length));
-      presenters.forEach((presenter, index) => {
-        formData.append(`presenterName-${index}`, presenter.name.trim());
-        if (presenter.photo) {
-          formData.append(`presenterPhoto-${index}`, presenter.photo);
-        }
-      });
-
       const res = await fetch("/api/topics", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          presenterNames: presenters.map((presenter) => presenter.name.trim()),
+        }),
       });
 
       const data = await res.json();
@@ -77,6 +72,27 @@ export function AddTopicForm({ onCreated }: AddTopicFormProps) {
         toast.error(data.error || "Failed to add topic");
         return;
       }
+
+      await Promise.allSettled(
+        presenters.map(async (presenter, index) => {
+          if (!presenter.photo) {
+            return;
+          }
+
+          const compressedPhoto = await compressImageFile(presenter.photo);
+          const photoForm = new FormData();
+          photoForm.append("photo", compressedPhoto);
+
+          const photoRes = await fetch(`/api/presenters/${data.presenters[index].id}/photo`, {
+            method: "POST",
+            body: photoForm,
+          });
+
+          if (!photoRes.ok) {
+            throw new Error("photo-upload-failed");
+          }
+        })
+      );
 
       toast.success(`"${data.title}" added with a unique QR code`);
       resetForm();

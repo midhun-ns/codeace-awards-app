@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createTopicSchema } from "@/lib/validators";
-import { savePresenterPhoto } from "@/lib/save-presenter-photo";
 
 export async function GET() {
   try {
@@ -56,22 +55,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const presenterCount = Number(formData.get("presenterCount")) || 0;
-
-    const presenterNames: string[] = [];
-    const presenterPhotos: (File | null)[] = [];
-    for (let index = 0; index < presenterCount; index++) {
-      presenterNames.push(String(formData.get(`presenterName-${index}`) ?? ""));
-      const photo = formData.get(`presenterPhoto-${index}`);
-      presenterPhotos.push(photo instanceof File && photo.size > 0 ? photo : null);
-    }
-
-    const validated = createTopicSchema.parse({
-      title: formData.get("title"),
-      presenterNames,
-    });
-
+    const body = await request.json();
+    const validated = createTopicSchema.parse(body);
     const order = (await prisma.topic.count()) + 1;
 
     const topic = await prisma.topic.create({
@@ -89,28 +74,18 @@ export async function POST(request: NextRequest) {
       )
     );
 
-    for (let index = 0; index < presenters.length; index++) {
-      const photo = presenterPhotos[index];
-      if (!photo) {
-        continue;
-      }
-      try {
-        const presenter = presenters[index];
-        const photoPath = await savePresenterPhoto(presenter.id, presenter.name, photo);
-        await prisma.presenter.update({
-          where: { id: presenter.id },
-          data: { photo: photoPath },
-        });
-      } catch {
-        // Photo upload is optional; topic creation should still succeed on serverless.
-      }
-    }
-
-    return NextResponse.json({ id: topic.id, title: topic.title }, { status: 201 });
+    return NextResponse.json(
+      {
+        id: topic.id,
+        title: topic.title,
+        presenters: presenters.map((presenter) => ({
+          id: presenter.id,
+          name: presenter.name,
+        })),
+      },
+      { status: 201 }
+    );
   } catch (error: unknown) {
-    if (error instanceof Error && error.message.includes("image")) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
     if (
       typeof error === "object" &&
       error !== null &&
