@@ -1,7 +1,23 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
-export const prisma = globalForPrisma.prisma || new PrismaClient();
+function createPrismaClient() {
+  const databaseUrl = process.env.DATABASE_URL;
+
+  if (databaseUrl?.startsWith("libsql://")) {
+    return new PrismaClient({
+      adapter: new PrismaLibSql({
+        url: databaseUrl,
+        authToken: process.env.TURSO_AUTH_TOKEN,
+      }),
+    });
+  }
+
+  return new PrismaClient();
+}
+
+export const prisma = globalForPrisma.prisma || createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

@@ -49,7 +49,13 @@ export default function LeaderboardPage() {
   const fetchLeaderboard = async () => {
     try {
       const res = await fetch("/api/leaderboard");
+      if (!res.ok) {
+        return;
+      }
       const result: LeaderboardEntry[] = await res.json();
+      if (!Array.isArray(result)) {
+        return;
+      }
       setData([...result].sort((a, b) => b.totalScore - a.totalScore));
     } catch {
       console.error("Failed to fetch leaderboard");

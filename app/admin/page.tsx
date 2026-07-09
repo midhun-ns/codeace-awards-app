@@ -66,16 +66,31 @@ export default function AdminPage() {
   }, [activeSession, topics]);
 
   const fetchTopics = async () => {
-    const res = await fetch("/api/topics");
-    const data = await res.json();
-    setTopics(data);
+    try {
+      const res = await fetch("/api/topics");
+      if (!res.ok) {
+        return;
+      }
+      const data = await res.json();
+      setTopics(Array.isArray(data) ? data : []);
+    } catch {
+      setTopics([]);
+    }
   };
 
   const fetchActiveSession = async () => {
-    const res = await fetch("/api/sessions");
-    const data = await res.json();
-    setActiveSession(data);
-    setLastUpdated(new Date());
+    try {
+      const res = await fetch("/api/sessions");
+      if (!res.ok) {
+        setActiveSession(null);
+        return;
+      }
+      const data = await res.json();
+      setActiveSession(data?.id ? data : null);
+      setLastUpdated(new Date());
+    } catch {
+      setActiveSession(null);
+    }
   };
 
   const startSession = async (topic: Topic) => {
