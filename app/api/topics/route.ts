@@ -78,20 +78,24 @@ export async function POST(request: NextRequest) {
       data: {
         title: validated.title,
         order,
-        presenters: {
-          create: validated.presenterNames.map((name) => ({ name })),
-        },
       },
-      include: { presenters: true },
     });
 
-    for (let index = 0; index < topic.presenters.length; index++) {
+    const presenters = await Promise.all(
+      validated.presenterNames.map((name) =>
+        prisma.presenter.create({
+          data: { name, topicId: topic.id },
+        })
+      )
+    );
+
+    for (let index = 0; index < presenters.length; index++) {
       const photo = presenterPhotos[index];
       if (!photo) {
         continue;
       }
       try {
-        const presenter = topic.presenters[index];
+        const presenter = presenters[index];
         const photoPath = await savePresenterPhoto(presenter.id, presenter.name, photo);
         await prisma.presenter.update({
           where: { id: presenter.id },
