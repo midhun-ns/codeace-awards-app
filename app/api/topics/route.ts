@@ -20,12 +20,6 @@ export async function GET() {
       },
     });
 
-    await Promise.all(
-      topics
-        .filter((topic) => topic.sessions.length === 0)
-        .map((topic) => ensureActiveSession(topic.id))
-    );
-
     const mapped = topics.map((topic) => {
       const allRatings = topic.presenters.flatMap((presenter) =>
         presenter.scores.map((score) => score.rating)
@@ -35,7 +29,7 @@ export async function GET() {
         id: topic.id,
         title: topic.title,
         order: topic.order,
-        isLive: true,
+        isLive: topic.sessions.length > 0,
         presenters: topic.presenters.map((presenter) => ({
           id: presenter.id,
           name: presenter.name,

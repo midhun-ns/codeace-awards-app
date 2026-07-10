@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { RatingForm, type RatingTopic } from "@/components/rating-form";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 
 interface ActiveSession {
   id: string;
@@ -31,22 +32,20 @@ export default function RateTopicPage() {
 
     const load = async () => {
       try {
-        const [topicsRes, sessionRes] = await Promise.all([
-          fetch("/api/topics"),
-          fetch(`/api/sessions/active?topicId=${topicId}`),
+        const [topicRes, sessionRes] = await Promise.all([
+          fetchWithTimeout(`/api/topics/${topicId}`, { cache: "no-store" }),
+          fetchWithTimeout(`/api/sessions/active?topicId=${topicId}`, { cache: "no-store" }),
         ]);
 
-        const topics: RatingTopic[] = await topicsRes.json();
-        const sessionData = await sessionRes.json();
-
-        const foundTopic = topics.find((item) => item.id === topicId);
-
-        if (!foundTopic) {
+        if (!topicRes.ok) {
           setError("Topic not found.");
           return;
         }
 
-        setTopic(foundTopic);
+        const topicData: RatingTopic = await topicRes.json();
+        const sessionData = await sessionRes.json();
+
+        setTopic(topicData);
 
         if (!sessionData.session) {
           setError("Rating is not open yet. Please wait for the presentation to finish.");
@@ -55,7 +54,7 @@ export default function RateTopicPage() {
 
         setSession(sessionData.session);
       } catch {
-        setError("Failed to load rating page.");
+        setError("Failed to load rating page. Please refresh and try again.");
       } finally {
         setLoading(false);
       }

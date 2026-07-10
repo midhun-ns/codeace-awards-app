@@ -16,16 +16,32 @@ export async function ensureActiveSession(topicId: number) {
     return existing;
   }
 
-  await prisma.session.updateMany({
-    where: { topicId, isActive: true },
-    data: { isActive: false },
-  });
+  try {
+    await prisma.session.updateMany({
+      where: { topicId, isActive: true },
+      data: { isActive: false },
+    });
 
-  return prisma.session.create({
-    data: {
-      topicId,
-      isActive: true,
-      expiresAt: new Date(Date.now() + SESSION_DURATION_MS),
-    },
-  });
+    return await prisma.session.create({
+      data: {
+        topicId,
+        isActive: true,
+        expiresAt: new Date(Date.now() + SESSION_DURATION_MS),
+      },
+    });
+  } catch {
+    const session = await prisma.session.findFirst({
+      where: {
+        topicId,
+        isActive: true,
+        expiresAt: { gt: now },
+      },
+    });
+
+    if (session) {
+      return session;
+    }
+
+    throw new Error("Failed to ensure active session");
+  }
 }

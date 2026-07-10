@@ -6,6 +6,7 @@ import { Star, Send, CheckCircle, AlertCircle, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 
 export interface RatingPresenter {
   id: number;
@@ -62,16 +63,20 @@ export function RatingForm({ topic, sessionToken }: RatingFormProps) {
         rating: ratings[presenter.id],
       }));
 
-      const res = await fetch("/api/scores", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          topicId: topic.id,
-          email,
-          sessionToken,
-          ratings: ratingsArray,
-        }),
-      });
+      const res = await fetchWithTimeout(
+        "/api/scores",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            topicId: topic.id,
+            email,
+            sessionToken,
+            ratings: ratingsArray,
+          }),
+        },
+        30000
+      );
 
       const data = await res.json();
 
@@ -91,7 +96,7 @@ export function RatingForm({ topic, sessionToken }: RatingFormProps) {
       setSubmitted(true);
       toast.success("Ratings submitted successfully!");
     } catch {
-      toast.error("Network error. Please try again.");
+      toast.error("Request timed out. Please try again.");
     } finally {
       setLoading(false);
     }

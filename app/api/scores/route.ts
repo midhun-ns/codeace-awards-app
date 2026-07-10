@@ -2,23 +2,42 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { scoreSchema, domainSchema } from "@/lib/validators";
 
+export const dynamic = "force-dynamic";
+
+function isPrismaUniqueError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code: string }).code === "P2002"
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const validated = scoreSchema.parse(body);
-
-    // Validate email domain
     domainSchema.parse(validated.email);
 
-    // Check if session is valid, active, and belongs to the topic
-    const session = await prisma.session.findFirst({
-      where: {
-        id: validated.sessionToken,
-        topicId: validated.topicId,
-        isActive: true,
-        expiresAt: { gt: new Date() },
-      },
-    });
+    const presenterIds = validated.ratings.map((entry) => entry.presenterId);
+
+    const [session, validPresenterCount] = await Promise.all([
+      prisma.session.findFirst({
+        where: {
+          id: validated.sessionToken,
+          topicId: validated.topicId,
+          isActive: true,
+          expiresAt: { gt: new Date() },
+        },
+        select: { id: true },
+      }),
+      prisma.presenter.count({
+        where: {
+          topicId: validated.topicId,
+          id: { in: presenterIds },
+        },
+      }),
+    ]);
 
     if (!session) {
       return NextResponse.json(
@@ -27,61 +46,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify every rated presenter belongs to this topic
-    const topicPresenters = await prisma.presenter.findMany({
-      where: { topicId: validated.topicId },
-      select: { id: true },
-    });
-    const topicPresenterIds = new Set(topicPresenters.map((presenter) => presenter.id));
-    const invalidPresenter = validated.ratings.some(
-      (entry) => !topicPresenterIds.has(entry.presenterId)
-    );
-
-    if (invalidPresenter) {
+    if (validPresenterCount !== presenterIds.length) {
       return NextResponse.json(
         { error: "Rating contains a presenter not in this topic" },
         { status: 400 }
       );
     }
 
-    // Check for duplicate votes (any presenter already rated in this session)
-    const existing = await prisma.score.findFirst({
-      where: {
+    const ipAddress =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "unknown";
+
+    const result = await prisma.score.createMany({
+      data: validated.ratings.map((entry) => ({
+        presenterId: entry.presenterId,
+        topicId: validated.topicId,
         email: validated.email,
+        rating: entry.rating,
         sessionToken: validated.sessionToken,
-        presenterId: { in: validated.ratings.map((entry) => entry.presenterId) },
-      },
+        ipAddress,
+      })),
     });
 
-    if (existing) {
+    return NextResponse.json({ success: true, count: result.count }, { status: 201 });
+  } catch (error: unknown) {
+    if (isPrismaUniqueError(error)) {
       return NextResponse.json(
         { error: "You have already rated this presentation" },
         { status: 409 }
       );
     }
 
-    const ipAddress =
-      request.headers.get("x-forwarded-for") ??
-      request.headers.get("x-real-ip") ??
-      "unknown";
-
-    const scores = await Promise.all(
-      validated.ratings.map((entry) =>
-        prisma.score.create({
-          data: {
-            presenterId: entry.presenterId,
-            topicId: validated.topicId,
-            email: validated.email,
-            rating: entry.rating,
-            sessionToken: validated.sessionToken,
-            ipAddress,
-          },
-        })
-      )
-    );
-
-    return NextResponse.json({ success: true, count: scores.length }, { status: 201 });
-  } catch (error: unknown) {
     if (
       typeof error === "object" &&
       error !== null &&
@@ -91,6 +87,7 @@ export async function POST(request: NextRequest) {
       const zodError = error as unknown as { errors: unknown };
       return NextResponse.json({ error: zodError.errors }, { status: 400 });
     }
+
     return NextResponse.json({ error: "Failed to submit score" }, { status: 500 });
   }
 }
