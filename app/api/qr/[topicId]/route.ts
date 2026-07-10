@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getRateUrl } from "@/lib/app-url";
 import { getQrFilename } from "@/lib/slugify";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ topicId: string }> }
@@ -45,7 +47,7 @@ export async function GET(
       headers: {
         "Content-Type": "image/png",
         "Content-Disposition": `attachment; filename="${filename}"`,
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": "no-store",
       },
     });
   } catch {
