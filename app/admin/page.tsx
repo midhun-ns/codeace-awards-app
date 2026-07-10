@@ -23,15 +23,10 @@ interface Topic {
   id: number;
   title: string;
   order: number;
+  isLive?: boolean;
   presenters: TopicPresenter[];
   totalVotes: number;
   averageScore: number;
-}
-
-interface Session {
-  id: string;
-  topicId: number;
-  isActive: boolean;
 }
 
 interface LeaderboardEntry {
@@ -43,9 +38,7 @@ interface LeaderboardEntry {
 
 export default function AdminPage() {
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
-  const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [topicToDelete, setTopicToDelete] = useState<Topic | null>(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -53,20 +46,17 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchTopics();
-    fetchActiveSession();
-    const interval = setInterval(fetchActiveSession, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    if (!activeSession || topics.length === 0) {
+    if (topics.length === 0) {
+      setSelectedTopic(null);
       return;
     }
-    const topic = topics.find((item) => item.id === activeSession.topicId);
-    if (topic) {
-      setSelectedTopic(topic);
+    if (!selectedTopic || !topics.some((topic) => topic.id === selectedTopic.id)) {
+      setSelectedTopic(topics[0]);
     }
-  }, [activeSession, topics]);
+  }, [topics, selectedTopic]);
 
   const fetchTopics = async () => {
     try {
@@ -76,46 +66,15 @@ export default function AdminPage() {
       }
       const data = await res.json();
       setTopics(Array.isArray(data) ? data : []);
+      setLastUpdated(new Date());
     } catch {
       setTopics([]);
     }
   };
 
-  const fetchActiveSession = async () => {
-    try {
-      const res = await fetch("/api/sessions", { cache: "no-store" });
-      if (!res.ok) {
-        setActiveSession(null);
-        return;
-      }
-      const data = await res.json();
-      setActiveSession(data?.id ? data : null);
-      setLastUpdated(new Date());
-    } catch {
-      setActiveSession(null);
-    }
-  };
-
-  const startSession = async (topic: Topic) => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topicId: topic.id }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setActiveSession(data.session);
-        setSelectedTopic(topic);
-        setLastUpdated(new Date());
-        toast.success(`Session started for "${topic.title}"`);
-      }
-    } catch {
-      toast.error("Failed to start session");
-    } finally {
-      setLoading(false);
-    }
+  const selectTopic = (topic: Topic) => {
+    setSelectedTopic(topic);
+    setLastUpdated(new Date());
   };
 
   const getAppBaseUrl = () => {
@@ -163,9 +122,6 @@ export default function AdminPage() {
         return;
       }
 
-      if (activeSession?.topicId === topicToDelete.id) {
-        setActiveSession(null);
-      }
       if (selectedTopic?.id === topicToDelete.id) {
         setSelectedTopic(null);
       }
@@ -225,6 +181,7 @@ export default function AdminPage() {
 
   const qrUrl = selectedTopic ? `${getAppBaseUrl()}/rate/${selectedTopic.id}` : "";
 
+  const liveTopics = topics.filter((topic) => topic.isLive !== false).length;
   const totalPresenters = topics.reduce((sum, topic) => sum + topic.presenters.length, 0);
   const totalVotes = topics.reduce((sum, topic) => sum + topic.totalVotes, 0);
 
@@ -279,11 +236,10 @@ export default function AdminPage() {
                   <TopicCard
                     key={topic.id}
                     topic={topic}
-                    isActive={activeSession?.topicId === topic.id}
-                    onClick={() => startSession(topic)}
+                    isActive={selectedTopic?.id === topic.id}
+                    onClick={() => selectTopic(topic)}
                     onDownloadQr={() => downloadQr(topic)}
                     onDelete={() => deleteTopic(topic)}
-                    loading={loading}
                   />
                 ))
               )}
@@ -296,7 +252,7 @@ export default function AdminPage() {
                 <QrCode className="h-5 w-5 text-violet-400" />
                 Live QR Code
               </div>
-              {activeSession?.isActive ? <span className="admin-live-badge">Live</span> : null}
+              {selectedTopic ? <span className="admin-live-badge">Live</span> : null}
             </div>
             <div className="admin-card-body flex flex-1 items-center justify-center min-h-[480px]">
               <AnimatePresence mode="wait">
@@ -313,7 +269,7 @@ export default function AdminPage() {
                   <div className="text-center text-slate-500">
                     <QrCode className="w-16 h-16 mx-auto mb-4 opacity-30" />
                     <p className="text-lg">Select a topic to view QR code</p>
-                    <p className="text-sm mt-2">Click a topic to start its session</p>
+                    <p className="text-sm mt-2">All topic QR codes are live for rating</p>
                   </div>
                 )}
               </AnimatePresence>
@@ -326,7 +282,7 @@ export default function AdminPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={fetchActiveSession}
+                  onClick={fetchTopics}
                   className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
                 >
                   <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>
@@ -342,7 +298,7 @@ export default function AdminPage() {
             { label: "Total Presenters", value: totalPresenters, icon: Users, color: "purple" },
             { label: "Total Votes", value: totalVotes, icon: BarChart3, color: "blue" },
             { label: "QR Codes Generated", value: topics.length, icon: QrCode, color: "green" },
-            { label: "Live Session", value: activeSession?.isActive ? 1 : 0, icon: Star, color: "orange" },
+            { label: "Live Sessions", value: liveTopics, icon: Star, color: "orange" },
           ].map((stat) => (
             <div key={stat.label} className="admin-stat-card">
               <div className={`admin-stat-icon ${stat.color}`}>

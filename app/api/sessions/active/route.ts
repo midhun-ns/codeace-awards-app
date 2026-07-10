@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ensureActiveSession } from "@/lib/ensure-active-session";
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,13 +22,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Topic not found" }, { status: 404 });
     }
 
-    const session = await prisma.session.findFirst({
-      where: {
-        topicId,
-        isActive: true,
-        expiresAt: { gt: new Date() },
-      },
-    });
+    const session = await ensureActiveSession(topicId);
 
     return NextResponse.json({ session });
   } catch {

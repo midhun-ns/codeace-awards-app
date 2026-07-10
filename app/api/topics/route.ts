@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createTopicSchema } from "@/lib/validators";
+import { ensureActiveSession } from "@/lib/ensure-active-session";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +13,18 @@ export async function GET() {
         presenters: {
           include: { scores: { select: { rating: true } } },
         },
+        sessions: {
+          where: { isActive: true, expiresAt: { gt: new Date() } },
+          take: 1,
+        },
       },
     });
+
+    await Promise.all(
+      topics
+        .filter((topic) => topic.sessions.length === 0)
+        .map((topic) => ensureActiveSession(topic.id))
+    );
 
     const mapped = topics.map((topic) => {
       const allRatings = topic.presenters.flatMap((presenter) =>
@@ -24,6 +35,7 @@ export async function GET() {
         id: topic.id,
         title: topic.title,
         order: topic.order,
+        isLive: true,
         presenters: topic.presenters.map((presenter) => ({
           id: presenter.id,
           name: presenter.name,
@@ -75,6 +87,8 @@ export async function POST(request: NextRequest) {
         })
       )
     );
+
+    await ensureActiveSession(topic.id);
 
     return NextResponse.json(
       {
