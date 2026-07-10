@@ -5,7 +5,7 @@ import { getRateUrl } from "@/lib/app-url";
 import { getQrFilename } from "@/lib/slugify";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ topicId: string }> }
 ) {
   try {
@@ -27,7 +27,7 @@ export async function GET(
       return NextResponse.json({ error: "Topic not found" }, { status: 404 });
     }
 
-    const rateUrl = getRateUrl(topicId);
+    const rateUrl = getRateUrl(topicId, request);
     const pngBuffer = await QRCode.toBuffer(rateUrl, {
       type: "png",
       width: 512,
