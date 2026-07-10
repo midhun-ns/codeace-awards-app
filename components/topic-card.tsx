@@ -12,8 +12,6 @@ interface Topic {
   id: number;
   title: string;
   presenters: TopicPresenter[];
-  totalVotes: number;
-  averageScore: number;
 }
 
 interface TopicCardProps {
@@ -58,9 +56,6 @@ export function TopicCard({ topic, isActive, onClick, onDownloadQr, onDelete, lo
           {isActive ? <span className="admin-active-badge">Active</span> : null}
         </div>
         <p className="text-slate-400 text-sm truncate">{presenterNames}</p>
-        <p className="text-xs text-slate-500 mt-1">
-          {topic.averageScore.toFixed(1)} avg · {topic.totalVotes} votes
-        </p>
       </div>
       {onDelete ? (
         <button
