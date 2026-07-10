@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, Users, RefreshCw } from "lucide-react";
+import { ArrowLeft, Users, RefreshCw, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LaurelWreath, PodiumBase } from "@/components/podium-base";
 import { toast } from "sonner";
@@ -44,6 +44,7 @@ export default function LeaderboardPage() {
   const [data, setData] = useState<LeaderboardEntry[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
   const [showResetDialog, setShowResetDialog] = useState(false);
+  const [showResults, setShowResults] = useState(false);
   const [resetting, setResetting] = useState(false);
 
   const fetchLeaderboard = async () => {
@@ -136,21 +137,73 @@ export default function LeaderboardPage() {
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-slate-400" />
-              <span className="text-slate-300 font-semibold text-sm tracking-wider">TOP PERFORMERS</span>
+              <span className="text-slate-300 font-semibold text-sm tracking-wider">
+                {showResults ? "ALL RESULTS" : "TOP PERFORMERS"}
+              </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowResetDialog(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full border border-red-500/30 text-red-400 text-sm hover:bg-red-500/10 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Reset
-            </button>
+            <div className="flex items-center gap-2">
+              {showResults ? (
+                <button
+                  type="button"
+                  onClick={() => setShowResults(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-600/50 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+                  title="Close results"
+                  aria-label="Close results"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowResults(true)}
+                  className="rounded-full border border-slate-600/50 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
+                >
+                  Results
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowResetDialog(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-red-500/30 text-red-400 transition-colors hover:bg-red-500/10"
+                title="Reset votes"
+                aria-label="Reset votes"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           {data.length === 0 ? (
             <div className="flex h-[360px] items-center justify-center text-slate-500">
               No ratings yet. Waiting for the first vote...
+            </div>
+          ) : showResults ? (
+            <div className="max-h-[480px] space-y-2 overflow-y-auto pr-1">
+              {data.map((entry, index) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center gap-3 rounded-xl border border-slate-700/40 bg-slate-900/40 px-3 py-2.5"
+                >
+                  <span className="w-7 shrink-0 text-center text-sm font-semibold text-slate-400">
+                    #{index + 1}
+                  </span>
+                  <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-slate-800">
+                    {entry.photo ? (
+                      <img src={entry.photo} alt={entry.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-sm">👤</div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-white">{entry.name}</p>
+                    <p className="truncate text-xs text-slate-500">{entry.topicTitle}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold text-violet-300">{entry.totalScore}</p>
+                    <p className="text-xs text-slate-500">{entry.totalVotes} votes</p>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="grid grid-cols-3 items-end gap-4 md:gap-8 w-full">
