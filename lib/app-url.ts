@@ -12,12 +12,35 @@ function isLocalhostUrl(url: string): boolean {
   }
 }
 
+function getUrlFromRequest(request: NextRequest): string | null {
+  const queryOrigin = request.nextUrl.searchParams.get("origin")?.trim();
+  if (queryOrigin && !isLocalhostUrl(queryOrigin)) {
+    return queryOrigin.replace(/\/$/, "");
+  }
+
+  const host =
+    request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+    request.headers.get("host")?.trim();
+  if (!host || isLocalhostHost(host.split(":")[0])) {
+    return null;
+  }
+
+  const proto =
+    request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+  return `${proto}://${host}`.replace(/\/$/, "");
+}
+
 export function getAppUrl(request?: NextRequest): string {
   if (request) {
-    const { origin, hostname } = request.nextUrl;
-    if (!isLocalhostHost(hostname)) {
-      return origin.replace(/\/$/, "");
+    const fromRequest = getUrlFromRequest(request);
+    if (fromRequest) {
+      return fromRequest;
     }
+  }
+
+  const productionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (productionUrl) {
+    return `https://${productionUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
   }
 
   const vercelUrl = process.env.VERCEL_URL?.trim();

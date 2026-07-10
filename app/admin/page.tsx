@@ -130,7 +130,8 @@ export default function AdminPage() {
   };
 
   const downloadQr = async (topic: Topic) => {
-    const res = await fetch(`/api/qr/${topic.id}`);
+    const origin = encodeURIComponent(window.location.origin);
+    const res = await fetch(`/api/qr/${topic.id}?origin=${origin}`);
     if (!res.ok) {
       toast.error(`Failed to download QR for "${topic.title}"`);
       return;
