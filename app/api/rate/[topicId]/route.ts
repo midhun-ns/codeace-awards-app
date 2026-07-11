@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureActiveSession } from "@/lib/ensure-active-session";
 import { getRateTopic } from "@/lib/get-rate-topic";
+import { setCachedRateTopic } from "@/lib/rate-topic-cache";
 import { formatSessionForClient } from "@/lib/format-session-for-client";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,8 @@ export async function GET(
     if (!topic) {
       return NextResponse.json({ error: "Topic not found" }, { status: 404 });
     }
+
+    setCachedRateTopic(id, topic);
 
     return NextResponse.json(
       { topic, session: formatSessionForClient(session) },

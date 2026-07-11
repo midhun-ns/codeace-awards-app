@@ -14,10 +14,10 @@ export interface ResolvedVoteSession {
   topicId: number;
 }
 
-export async function resolveVoteSession(
+export function resolveVoteSessionFast(
   topicId: number,
   sessionToken: string
-): Promise<ResolvedVoteSession | null> {
+): ResolvedVoteSession | null | undefined {
   const signed = verifyVoteSessionToken(sessionToken, topicId);
   if (signed) {
     setCachedSessionTokenValidity(topicId, sessionToken, true);
@@ -26,7 +26,6 @@ export async function resolveVoteSession(
 
   const cachedActive = getCachedActiveSession(topicId);
   if (cachedActive?.id === sessionToken) {
-    setCachedSessionTokenValidity(topicId, sessionToken, true);
     return { sessionId: sessionToken, topicId };
   }
 
@@ -40,10 +39,16 @@ export async function resolveVoteSession(
   }
 
   if (!isUuidSessionToken(sessionToken)) {
-    setCachedSessionTokenValidity(topicId, sessionToken, false);
     return null;
   }
 
+  return undefined;
+}
+
+export async function resolveVoteSessionFromDb(
+  topicId: number,
+  sessionToken: string
+): Promise<ResolvedVoteSession | null> {
   const session = await prisma.session.findFirst({
     where: {
       id: sessionToken,
@@ -61,4 +66,16 @@ export async function resolveVoteSession(
 
   setCachedSessionTokenValidity(topicId, sessionToken, true);
   return { sessionId: session.id, topicId: session.topicId };
+}
+
+export async function resolveVoteSession(
+  topicId: number,
+  sessionToken: string
+): Promise<ResolvedVoteSession | null> {
+  const fast = resolveVoteSessionFast(topicId, sessionToken);
+  if (fast !== undefined) {
+    return fast;
+  }
+
+  return resolveVoteSessionFromDb(topicId, sessionToken);
 }

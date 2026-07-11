@@ -1,7 +1,11 @@
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import {
+  getCachedRateTopic,
+  setCachedRateTopic,
+  type RateTopic,
+} from "@/lib/rate-topic-cache";
 
-async function fetchTopicForRate(topicId: number) {
+async function fetchTopicForRate(topicId: number): Promise<RateTopic | null> {
   return prisma.topic.findUnique({
     where: { id: topicId },
     select: {
@@ -18,10 +22,14 @@ async function fetchTopicForRate(topicId: number) {
   });
 }
 
-export function getRateTopic(topicId: number) {
-  return unstable_cache(
-    () => fetchTopicForRate(topicId),
-    [`rate-topic-${topicId}`],
-    { revalidate: 60, tags: [`rate-topic-${topicId}`] }
-  )();
+export async function getRateTopic(topicId: number): Promise<RateTopic | null> {
+  const cached = getCachedRateTopic(topicId);
+  if (cached) return cached;
+
+  const topic = await fetchTopicForRate(topicId);
+  if (topic) {
+    setCachedRateTopic(topicId, topic);
+  }
+
+  return topic;
 }

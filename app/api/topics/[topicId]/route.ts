@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { invalidateRateTopicCache } from "@/lib/rate-topic-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +61,7 @@ export async function DELETE(
     }
 
     await prisma.topic.delete({ where: { id } });
-    revalidateTag(`rate-topic-${id}`);
+    invalidateRateTopicCache(id);
 
     return NextResponse.json({ success: true });
   } catch {

@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { scoreSchema, domainSchema } from "@/lib/validators";
-import { resolveVoteSession } from "@/lib/resolve-vote-session";
+import {
+  resolveVoteSessionFast,
+  resolveVoteSessionFromDb,
+} from "@/lib/resolve-vote-session";
+import { getCachedRateTopic } from "@/lib/rate-topic-cache";
 import { getRateTopic } from "@/lib/get-rate-topic";
+import { insertScores, isUniqueConstraintError } from "@/lib/insert-scores";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function isPrismaUniqueError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code: string }).code === "P2002"
-  );
-}
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,12 +19,17 @@ export async function POST(request: NextRequest) {
     const validated = scoreSchema.parse(body);
     domainSchema.parse(validated.email);
 
-    const presenterIds = validated.ratings.map((entry) => entry.presenterId);
+    let resolvedSession = resolveVoteSessionFast(
+      validated.topicId,
+      validated.sessionToken
+    );
 
-    const [resolvedSession, topic] = await Promise.all([
-      resolveVoteSession(validated.topicId, validated.sessionToken),
-      getRateTopic(validated.topicId),
-    ]);
+    if (resolvedSession === undefined) {
+      resolvedSession = await resolveVoteSessionFromDb(
+        validated.topicId,
+        validated.sessionToken
+      );
+    }
 
     if (!resolvedSession) {
       return NextResponse.json(
@@ -36,13 +38,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let topic = getCachedRateTopic(validated.topicId);
+    if (!topic) {
+      topic = await getRateTopic(validated.topicId);
+    }
+
     if (!topic) {
       return NextResponse.json({ error: "Topic not found" }, { status: 404 });
     }
 
     const validPresenterIds = new Set(topic.presenters.map((presenter) => presenter.id));
-    const allPresentersValid = presenterIds.every((presenterId) =>
-      validPresenterIds.has(presenterId)
+    const allPresentersValid = validated.ratings.every((entry) =>
+      validPresenterIds.has(entry.presenterId)
     );
 
     if (!allPresentersValid) {
@@ -57,20 +64,20 @@ export async function POST(request: NextRequest) {
       request.headers.get("x-real-ip") ??
       "unknown";
 
-    const result = await prisma.score.createMany({
-      data: validated.ratings.map((entry) => ({
+    const count = await insertScores(
+      validated.ratings.map((entry) => ({
         presenterId: entry.presenterId,
         topicId: validated.topicId,
         email: validated.email,
         rating: entry.rating,
         sessionToken: resolvedSession.sessionId,
         ipAddress,
-      })),
-    });
+      }))
+    );
 
-    return NextResponse.json({ success: true, count: result.count }, { status: 201 });
+    return NextResponse.json({ success: true, count }, { status: 201 });
   } catch (error: unknown) {
-    if (isPrismaUniqueError(error)) {
+    if (isUniqueConstraintError(error)) {
       return NextResponse.json(
         { error: "You have already rated this presentation" },
         { status: 409 }
