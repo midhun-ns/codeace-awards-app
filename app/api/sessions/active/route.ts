@@ -16,17 +16,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const topic = await prisma.topic.findUnique({
-      where: { id: topicId },
-    });
-
-    if (!topic) {
-      return NextResponse.json({ error: "Topic not found" }, { status: 404 });
-    }
-
     const session = await ensureActiveSession(topicId);
 
-    return NextResponse.json({ session });
+    return NextResponse.json(
+      { session },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+        },
+      }
+    );
   } catch {
     return NextResponse.json(
       { error: "Failed to fetch active session" },

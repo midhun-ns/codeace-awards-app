@@ -39,7 +39,10 @@ async function syncTursoSchema() {
   );
 
   if (existing.rows.length > 0) {
-    console.log("Turso schema already exists — skipping sync.");
+    console.log("Turso schema already exists — applying index migrations.");
+    await client.execute(
+      'CREATE INDEX IF NOT EXISTS "Session_topicId_isActive_expiresAt_idx" ON "Session"("topicId", "isActive", "expiresAt")'
+    );
     return;
   }
 

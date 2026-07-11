@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +34,11 @@ export async function GET(
       return NextResponse.json({ error: "Topic not found" }, { status: 404 });
     }
 
-    return NextResponse.json(topic);
+    return NextResponse.json(topic, {
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+      },
+    });
   } catch {
     return NextResponse.json({ error: "Failed to fetch topic" }, { status: 500 });
   }
@@ -56,6 +61,7 @@ export async function DELETE(
     }
 
     await prisma.topic.delete({ where: { id } });
+    revalidateTag(`rate-topic-${id}`);
 
     return NextResponse.json({ success: true });
   } catch {

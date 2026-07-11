@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { RatingForm, type RatingTopic } from "@/components/rating-form";
+import { RatingForm } from "@/components/rating-form";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 
 interface ActiveSession {
@@ -18,7 +18,11 @@ export default function RateTopicPage() {
   const params = useParams();
   const topicId = Number(params.topicId);
 
-  const [topic, setTopic] = useState<RatingTopic | null>(null);
+  const [topic, setTopic] = useState<{
+    id: number;
+    title: string;
+    presenters: { id: number; name: string; photo?: string | null }[];
+  } | null>(null);
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,27 +36,26 @@ export default function RateTopicPage() {
 
     const load = async () => {
       try {
-        const [topicRes, sessionRes] = await Promise.all([
-          fetchWithTimeout(`/api/topics/${topicId}`, { cache: "no-store" }),
-          fetchWithTimeout(`/api/sessions/active?topicId=${topicId}`, { cache: "no-store" }),
-        ]);
+        const res = await fetchWithTimeout(`/api/rate/${topicId}`);
 
-        if (!topicRes.ok) {
-          setError("Topic not found.");
+        if (!res.ok) {
+          if (res.status === 404) {
+            setError("Topic not found.");
+          } else {
+            setError("Failed to load rating page. Please refresh and try again.");
+          }
           return;
         }
 
-        const topicData: RatingTopic = await topicRes.json();
-        const sessionData = await sessionRes.json();
+        const data = await res.json();
 
-        setTopic(topicData);
-
-        if (!sessionData.session) {
+        if (!data.session) {
           setError("Rating is not open yet. Please wait for the presentation to finish.");
           return;
         }
 
-        setSession(sessionData.session);
+        setTopic(data.topic);
+        setSession(data.session);
       } catch {
         setError("Failed to load rating page. Please refresh and try again.");
       } finally {

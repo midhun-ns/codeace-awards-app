@@ -54,6 +54,5 @@ model Session {
   createdAt   DateTime  @default(now())
   expiresAt   DateTime
 
-  @@index([topicId])
-  @@index([isActive])
+  @@index([topicId, isActive, expiresAt])
 }
