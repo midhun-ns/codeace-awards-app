@@ -27,7 +27,8 @@ export async function GET(request: NextRequest) {
         },
       }
     );
-  } catch {
+  } catch (error: unknown) {
+    console.error("Failed to fetch active session:", error);
     return NextResponse.json(
       { error: "Failed to fetch active session" },
       { status: 500 }

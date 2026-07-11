@@ -10,32 +10,54 @@ const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
 const inflightByTopic = new Map<number, Promise<Session>>();
 
+async function withDbRetry<T>(operation: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt === 3) break;
+      await new Promise((resolve) => setTimeout(resolve, 50 * attempt));
+    }
+  }
+
+  throw lastError;
+}
+
 async function loadActiveSessionFromDb(topicId: number, now = new Date()) {
-  return prisma.session.findFirst({
-    where: {
-      topicId,
-      isActive: true,
-      expiresAt: { gt: now },
-    },
-  });
+  return withDbRetry(() =>
+    prisma.session.findFirst({
+      where: {
+        topicId,
+        isActive: true,
+        expiresAt: { gt: now },
+      },
+    })
+  );
 }
 
 async function createActiveSession(topicId: number) {
   const now = new Date();
 
   try {
-    await prisma.session.updateMany({
-      where: { topicId, isActive: true },
-      data: { isActive: false },
-    });
+    await withDbRetry(() =>
+      prisma.session.updateMany({
+        where: { topicId, isActive: true },
+        data: { isActive: false },
+      })
+    );
 
-    const session = await prisma.session.create({
-      data: {
-        topicId,
-        isActive: true,
-        expiresAt: new Date(Date.now() + SESSION_DURATION_MS),
-      },
-    });
+    const session = await withDbRetry(() =>
+      prisma.session.create({
+        data: {
+          topicId,
+          isActive: true,
+          expiresAt: new Date(Date.now() + SESSION_DURATION_MS),
+        },
+      })
+    );
 
     invalidateActiveSessionCache(topicId);
     setCachedActiveSession(topicId, session);

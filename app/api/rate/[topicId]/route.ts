@@ -35,7 +35,8 @@ export async function GET(
         },
       }
     );
-  } catch {
+  } catch (error: unknown) {
+    console.error("Failed to load rating page data:", error);
     return NextResponse.json(
       { error: "Failed to load rating page data" },
       { status: 500 }

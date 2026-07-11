@@ -8,24 +8,27 @@ interface VoteSessionPayload {
 }
 
 function getSigningSecret() {
-  const secret = process.env.APP_PASSWORD?.trim();
-  if (!secret) {
-    throw new Error("APP_PASSWORD is required for vote session signing");
-  }
-  return secret;
+  return (
+    process.env.SESSION_SIGNING_SECRET?.trim() ||
+    process.env.APP_PASSWORD?.trim() ||
+    null
+  );
 }
 
 function encodePayload(payload: VoteSessionPayload) {
   return Buffer.from(JSON.stringify(payload)).toString("base64url");
 }
 
-function signPayload(encodedPayload: string) {
-  return createHmac("sha256", getSigningSecret())
-    .update(encodedPayload)
-    .digest("base64url");
+function signPayload(encodedPayload: string, secret: string) {
+  return createHmac("sha256", secret).update(encodedPayload).digest("base64url");
 }
 
 export function signVoteSessionToken(session: Session) {
+  const secret = getSigningSecret();
+  if (!secret) {
+    return session.id;
+  }
+
   const payload: VoteSessionPayload = {
     sid: session.id,
     tid: session.topicId,
@@ -33,7 +36,7 @@ export function signVoteSessionToken(session: Session) {
   };
 
   const encodedPayload = encodePayload(payload);
-  return `${encodedPayload}.${signPayload(encodedPayload)}`;
+  return `${encodedPayload}.${signPayload(encodedPayload, secret)}`;
 }
 
 export function verifyVoteSessionToken(
@@ -50,7 +53,11 @@ export function verifyVoteSessionToken(
 
   let expectedSignature: string;
   try {
-    expectedSignature = signPayload(encodedPayload);
+    const secret = getSigningSecret();
+    if (!secret) {
+      return null;
+    }
+    expectedSignature = signPayload(encodedPayload, secret);
   } catch {
     return null;
   }
