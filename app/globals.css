@@ -86,7 +86,7 @@
 .leaderboard-logo {
   display: block;
   margin: 0 auto 24px;
-  height: clamp(3.5rem, 10vw, 5.5rem);
+  height: clamp(5rem, 14vw, 7.5rem);
   width: auto;
   object-fit: contain;
   filter:

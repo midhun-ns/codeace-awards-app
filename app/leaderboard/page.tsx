@@ -113,17 +113,16 @@ export default function LeaderboardPage() {
 
       <div className="relative max-w-6xl mx-auto px-4 py-6 md:py-8">
         {/* Top navigation */}
-        <div className="flex items-center justify-between mb-8">
-          <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm">
+        <div className="mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm">
             <ArrowLeft className="w-4 h-4" />
             Back
           </Link>
-          <img src="/codeace-logo.png" alt="Codeace" className="leaderboard-logo mb-0 h-10" />
-          <div className="w-16" />
         </div>
 
         {/* Header */}
         <div className="text-center mb-8">
+          <img src="/codeace-logo.png" alt="Codeace" className="leaderboard-logo" />
           <h1 className="text-4xl md:text-5xl font-bold">
             <span className="text-white">Excellence in </span>
             <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">

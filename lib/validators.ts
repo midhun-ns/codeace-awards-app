@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const scoreSchema = z.object({
   topicId: z.number().int().positive(),
-  email: z.string().email().toLowerCase(),
+  voterId: z.string().uuid(),
   sessionToken: z.string().min(20),
   ratings: z
     .array(
@@ -24,14 +24,6 @@ export const createTopicSchema = z.object({
     .array(z.string().trim().min(1, "Presenter name is required"))
     .min(1, "At least one presenter is required"),
 });
-
-export const domainSchema = z.string().email().refine(
-  (email) => {
-    const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN || "codeace.com";
-    return email.endsWith(`@${allowedDomain}`);
-  },
-  { message: "Only company email addresses are allowed" }
-);
 
 export type ScoreInput = z.infer<typeof scoreSchema>;
 export type SessionInput = z.infer<typeof sessionSchema>;

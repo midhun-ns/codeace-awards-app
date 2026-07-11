@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { scoreSchema, domainSchema } from "@/lib/validators";
+import { scoreSchema } from "@/lib/validators";
 import {
   resolveVoteSessionFast,
   resolveVoteSessionFromDb,
@@ -17,7 +17,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const validated = scoreSchema.parse(body);
-    domainSchema.parse(validated.email);
 
     let resolvedSession = resolveVoteSessionFast(
       validated.topicId,
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest) {
       validated.ratings.map((entry) => ({
         presenterId: entry.presenterId,
         topicId: validated.topicId,
-        email: validated.email,
+        voterId: validated.voterId,
         rating: entry.rating,
         sessionToken: resolvedSession.sessionId,
         ipAddress,

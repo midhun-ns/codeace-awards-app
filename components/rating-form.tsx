@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Star, Send, CheckCircle, AlertCircle, User } from "lucide-react";
+import { Star, Send, CheckCircle, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import { getVoterId } from "@/lib/voter-id";
 
 export interface RatingPresenter {
   id: number;
@@ -26,7 +26,6 @@ interface RatingFormProps {
 }
 
 export function RatingForm({ topic, sessionToken }: RatingFormProps) {
-  const [email, setEmail] = useState("");
   const [ratings, setRatings] = useState<Record<number, number>>({});
   const [hoverRatings, setHoverRatings] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(false);
@@ -51,8 +50,8 @@ export function RatingForm({ topic, sessionToken }: RatingFormProps) {
   };
 
   const handleSubmit = async () => {
-    if (!email || !allRated) {
-      toast.error("Please enter your email and rate every presenter");
+    if (!allRated) {
+      toast.error("Please rate every presenter");
       return;
     }
 
@@ -70,7 +69,7 @@ export function RatingForm({ topic, sessionToken }: RatingFormProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             topicId: topic.id,
-            email,
+            voterId: getVoterId(),
             sessionToken,
             ratings: ratingsArray,
           }),
@@ -129,7 +128,6 @@ export function RatingForm({ topic, sessionToken }: RatingFormProps) {
         <p className="text-indigo-400 font-medium">{topic.title}</p>
       </div>
 
-      {/* Presenter avatars */}
       <div className="flex justify-center gap-6">
         {topic.presenters.map((presenter) => (
           <div key={presenter.id} className="flex flex-col items-center">
@@ -151,22 +149,6 @@ export function RatingForm({ topic, sessionToken }: RatingFormProps) {
         ))}
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-300">Your Work Email</label>
-        <Input
-          type="email"
-          placeholder="you@codeace.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 h-12"
-        />
-        <p className="text-xs text-slate-500 flex items-center gap-1">
-          <AlertCircle className="w-3 h-3" />
-          Only @codeace.com emails are accepted
-        </p>
-      </div>
-
-      {/* Individual rating sections */}
       <div className="space-y-5">
         {topic.presenters.map((presenter, index) => (
           <motion.div
@@ -221,7 +203,7 @@ export function RatingForm({ topic, sessionToken }: RatingFormProps) {
       <div>
         <Button
           onClick={handleSubmit}
-          disabled={loading || !email || !allRated}
+          disabled={loading || !allRated}
           className="w-full h-12 text-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50"
         >
           {loading ? (

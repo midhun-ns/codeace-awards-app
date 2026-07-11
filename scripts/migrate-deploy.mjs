@@ -26,6 +26,36 @@ function isTursoUrl(url) {
   return url.startsWith("libsql://") || (url.startsWith("https://") && url.includes("turso"));
 }
 
+async function applyTursoMigrations(client) {
+  await client.execute(
+    'CREATE INDEX IF NOT EXISTS "Session_topicId_isActive_expiresAt_idx" ON "Session"("topicId", "isActive", "expiresAt")'
+  );
+
+  const scoreColumns = await client.execute('PRAGMA table_info("Score")');
+  const columnNames = scoreColumns.rows.map((row) => row.name);
+
+  if (!columnNames.includes("voterId")) {
+    const migrationPath = join(
+      __dirname,
+      "../prisma/migrations/20260711220000_remove_email_from_scores/migration.sql"
+    );
+    const sql = readFileSync(migrationPath, "utf8");
+    const statements = sql
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("--"))
+      .join("\n")
+      .split(";")
+      .map((statement) => statement.trim())
+      .filter(Boolean);
+
+    for (const statement of statements) {
+      await client.execute(statement);
+    }
+
+    console.log("Turso Score table migrated to voterId.");
+  }
+}
+
 async function syncTursoSchema() {
   const authToken = process.env.TURSO_AUTH_TOKEN;
   if (!authToken) {
@@ -39,10 +69,8 @@ async function syncTursoSchema() {
   );
 
   if (existing.rows.length > 0) {
-    console.log("Turso schema already exists — applying index migrations.");
-    await client.execute(
-      'CREATE INDEX IF NOT EXISTS "Session_topicId_isActive_expiresAt_idx" ON "Session"("topicId", "isActive", "expiresAt")'
-    );
+    console.log("Turso schema already exists — applying migrations.");
+    await applyTursoMigrations(client);
     return;
   }
 

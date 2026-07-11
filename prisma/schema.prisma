@@ -34,13 +34,13 @@ model Score {
   presenterId  Int
   presenter    Presenter @relation(fields: [presenterId], references: [id], onDelete: Cascade)
   topicId      Int
-  email        String
+  voterId      String
   rating       Int
   sessionToken String
-  ipAddress    String?
+  ipAddress    String
   createdAt    DateTime  @default(now())
 
-  @@unique([email, presenterId, sessionToken])
+  @@unique([voterId, presenterId, sessionToken])
   @@index([presenterId])
   @@index([topicId])
   @@index([sessionToken])
