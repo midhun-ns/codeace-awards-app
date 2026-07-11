@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { scoreSchema, domainSchema } from "@/lib/validators";
-import {
-  getCachedSessionTokenValidity,
-  setCachedSessionTokenValidity,
-} from "@/lib/active-session-cache";
+import { resolveVoteSession } from "@/lib/resolve-vote-session";
 import { getRateTopic } from "@/lib/get-rate-topic";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 function isPrismaUniqueError(error: unknown): boolean {
   return (
@@ -18,27 +16,6 @@ function isPrismaUniqueError(error: unknown): boolean {
   );
 }
 
-async function isSessionTokenValid(topicId: number, sessionToken: string) {
-  const cached = getCachedSessionTokenValidity(topicId, sessionToken);
-  if (cached !== null) {
-    return cached;
-  }
-
-  const session = await prisma.session.findFirst({
-    where: {
-      id: sessionToken,
-      topicId,
-      isActive: true,
-      expiresAt: { gt: new Date() },
-    },
-    select: { id: true },
-  });
-
-  const valid = Boolean(session);
-  setCachedSessionTokenValidity(topicId, sessionToken, valid);
-  return valid;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -47,12 +24,12 @@ export async function POST(request: NextRequest) {
 
     const presenterIds = validated.ratings.map((entry) => entry.presenterId);
 
-    const [sessionValid, topic] = await Promise.all([
-      isSessionTokenValid(validated.topicId, validated.sessionToken),
+    const [resolvedSession, topic] = await Promise.all([
+      resolveVoteSession(validated.topicId, validated.sessionToken),
       getRateTopic(validated.topicId),
     ]);
 
-    if (!sessionValid) {
+    if (!resolvedSession) {
       return NextResponse.json(
         { error: "Invalid or expired session token" },
         { status: 403 }
@@ -86,7 +63,7 @@ export async function POST(request: NextRequest) {
         topicId: validated.topicId,
         email: validated.email,
         rating: entry.rating,
-        sessionToken: validated.sessionToken,
+        sessionToken: resolvedSession.sessionId,
         ipAddress,
       })),
     });

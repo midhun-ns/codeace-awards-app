@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { ensureActiveSession } from "@/lib/ensure-active-session";
+import { formatSessionForClient } from "@/lib/format-session-for-client";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     const session = await ensureActiveSession(topicId);
 
     return NextResponse.json(
-      { session },
+      { session: formatSessionForClient(session) },
       {
         headers: {
           "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",

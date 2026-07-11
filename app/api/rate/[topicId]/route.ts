@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureActiveSession } from "@/lib/ensure-active-session";
 import { getRateTopic } from "@/lib/get-rate-topic";
+import { formatSessionForClient } from "@/lib/format-session-for-client";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET(
   _request: NextRequest,
@@ -26,7 +28,7 @@ export async function GET(
     }
 
     return NextResponse.json(
-      { topic, session },
+      { topic, session: formatSessionForClient(session) },
       {
         headers: {
           "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",

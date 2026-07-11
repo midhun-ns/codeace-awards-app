@@ -3,7 +3,7 @@ import { z } from "zod";
 export const scoreSchema = z.object({
   topicId: z.number().int().positive(),
   email: z.string().email().toLowerCase(),
-  sessionToken: z.string().uuid(),
+  sessionToken: z.string().min(20),
   ratings: z
     .array(
       z.object({
